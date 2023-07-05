@@ -6,11 +6,18 @@ authors = ["Your Name <you@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
-SQLAlchemy = "^2.0.17"
+python = ">=3.10,<3.12"
+SQLAlchemy = "<2.0.0dev"
 apscheduler = "^3.10.1"
 logging = "^0.4.9.6"
 requests = "^2.31.0"
+google-cloud = "^0.34.0"
+google = "^3.0.0"
+google-cloud-bigquery = "^3.11.3"
+sqlalchemy-bigquery = "^1.6.1"
+google-auth = "^2.21.0"
+google-auth-oauthlib = "^1.0.0"
+google-auth-httplib2 = "^0.1.0"
 
 
 [build-system]

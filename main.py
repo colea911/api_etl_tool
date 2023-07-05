@@ -134,6 +134,7 @@ def session_scope():
     try:
         yield session
         session.commit()
+        print('Data inserted successfully.')
     except SQLAlchemyError as e:
         session.rollback()
         logging.error(f"Error occurred during session: {str(e)}")
