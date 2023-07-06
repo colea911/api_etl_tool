@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, Column, Integer, Float, String, Boolean, D
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import os
-
+from sqlalchemy import inspect
 
 
 # from sqlalchemy import create_engine, Column, Integer, String
@@ -17,7 +17,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Construct the path to the credentials directory
 credentials_dir = os.path.join(current_dir, '..', 'credentials', 'focal-shadow-391317-39771525acf3.json')
-print(credentials_dir)
 
 
 # Set the project ID and dataset ID
@@ -38,8 +37,7 @@ Session = sessionmaker(bind=engine)
 # Set up the base class for declarative models
 Base = declarative_base()
 
-
-# Example getrawmempooldata RPC call
+#Example getrawmempooldata RPC call
 
 # {'0de76e865e9822c5d9e0bb612298914b336c7b3d194cf71a8f4fcb399d293c53': {'vsize': 140,
 #   'weight': 559,
@@ -58,12 +56,19 @@ Base = declarative_base()
 #   'spentby': [],
 #   'bip125-replaceable': True,
 #   'unbroadcast': False,
-#   'record_time': 1688183816},
-
- 
 
 
-class MempoolEntry(Base):
+# All ORMs inherit ParentClass
+class ParentClass(Base):
+    __abstract__ = True
+    @classmethod
+    def create_from_dict(cls, data):
+        valid_data = {k: v if hasattr(cls, k) else print(f"{k} not in schema") for k, v in data.items()}
+        return cls(**valid_data)
+
+
+# ORM for getrawmempooldata API
+class MempoolEntry(ParentClass):
     __tablename__ = f"{project_id}.{dataset_id}.{table_id}"
 
     tx = Column(String, primary_key=True)
@@ -76,52 +81,49 @@ class MempoolEntry(Base):
     ancestorcount = Column(Integer)
     ancestorsize = Column(Integer)
     wtxid = Column(String)
-    base_fee = Column(Float)
-    modified_fee = Column(Float)
-    ancestor_fee = Column(Float)
-    descendant_fee = Column(Float)
+    fees_base = Column(Float)
+    fees_modified = Column(Float)
+    fees_ancestor = Column(Float)
+    fees_descendant = Column(Float)
     bip125_replaceable = Column(Boolean)
     unbroadcast = Column(Boolean)
     record_time = Column(Integer)
     service = Column(String)
     last_seen_mempool = Column(Integer)
 
-    @classmethod
-    def create_from_dict(cls, data):
-        valid_data = {k: v for k, v in data.items() if hasattr(cls, k)}
-        return cls(**valid_data)
 
+# Function creates a SQL DDL Create Statement from ORM (note SQLalchemy doesn't support BQ SQL variant)
+def generate_bigquery_table_schema(model, partition = None, cluster= None):
+    create_table_sql = f"CREATE TABLE IF NOT EXISTS `{project_id}.{dataset_id}.{table_id}` (\n"
+    inspector = inspect(model)
+    columns = inspector.columns
 
+    schema = []
+    for column in columns:
+        column_name = column.name
+        column_type = column.type
+        if str(column_type).upper() == "FLOAT":
+            column_type = "FLOAT64"
+        if str(column_type).upper() == "VARCHAR":
+            column_type = "STRING"
+        create_table_sql += f"{column_name} {column_type},\n" 
+    
+    create_table_sql = create_table_sql[:-2] 
+    create_table_sql += "\n)\n"
+    if partition:
+        create_table_sql += f"PARTITION BY {partition}\n"
+    if cluster:
+        create_table_sql += f"CLUSTER BY {cluster}"   
+        
+    return create_table_sql
 
+ddl_getrawmempooldata = generate_bigquery_table_schema(MempoolEntry, cluster = "tx")
+ddls = [ddl_getrawmempooldata]
 
-# SQL statement to create the table
-create_table_sql = f"""
-    CREATE TABLE IF NOT EXISTS `{project_id}.{dataset_id}.{table_id}` (
-        tx STRING,
-        vsize INTEGER,
-        weight INTEGER,
-        time INTEGER,
-        height INTEGER,
-        descendantcount INTEGER,
-        descendantsize INTEGER,
-        ancestorcount INTEGER,
-        ancestorsize INTEGER,
-        wtxid STRING,
-        base_fee FLOAT64,
-        modified_fee FLOAT64,
-        ancestor_fee FLOAT64,
-        descendant_fee FLOAT64,
-        bip125_replaceable BOOLEAN,
-        unbroadcast BOOLEAN,
-        record_time INTEGER,
-        service STRING,
-        last_seen_mempool INTEGER
-    )
-"""
-
-# Execute the SQL statement
+# In case this is first run create table in BigQuery
 with engine.connect() as conn:
-    conn.execute(create_table_sql)
+    for ddl in ddls:
+        conn.execute(ddl)
 
 
 
