@@ -1,0 +1,40 @@
+# Ignore .pyc cache files
+*.pyc
+*.pyo
+
+# Ignore temporary files
+*~
+*.swp
+*.swo
+*.tmp
+
+# Ignore log files
+*.log
+*.log.*
+logfile.txt
+
+# Ignore db files
+*.db
+*.sqlite
+*.sqlite3
+
+
+# Ignore jupyter stuff
+.ipynb_checkpoints/
+**/*.ipynb_checkpoints
+*.ipynb_meta
+*.nbconvert.ipynb
+
+# Ignore __pycache__ directory
+__pycache__/
+
+# Ignore credentials
+credentials/*
+
+# Ignore all hidden files and directories
+.*
+
+# Exclude .gitignore file
+!.gitignore
+
+
